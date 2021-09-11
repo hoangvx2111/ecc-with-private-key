@@ -9,8 +9,11 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
@@ -29,12 +32,11 @@ public class EccWithPrivateKeyFile {
 
   public static void main(String[] args) {
     String plainText = "Hello World!";
-
+    System.out.print("Plaintext: " + plainText);
     String path = getPath();
-
-    System.out.println("Plaintext: " + plainText);
-    File privatePem = new File(path + "\\private.key");
-    File publicPem = new File(path + "\\public.pem");
+    //Create private key and public key
+    File privatePem = generateKey(path, "private");
+    File publicPem = generateKey(path, "public");
 
     // Create two key pairs
     PrivateKey privateKey = readPrivateKey(privatePem);
@@ -42,11 +44,11 @@ public class EccWithPrivateKeyFile {
 
     SecretKey key = generateSharedSecret(privateKey, publicKey);
 
-    // Encrypt by secretKeyA
+    // Encrypt
     String encryptText = encryptString(key, plainText);
     System.out.println("Encrypted text: " + encryptText);
 
-    // Decrypt by secretKeyB
+    // Decrypt
     String decryptedText = decryptString(key, encryptText);
     System.out.println("Decrypted text: " + decryptedText);
 
@@ -58,6 +60,20 @@ public class EccWithPrivateKeyFile {
       File file = new File(URLDecoder.decode(url.getFile(), StandardCharsets.UTF_8));
       return file.getAbsolutePath();
     } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
+  public static File generateKey(String path, String fileName) {
+    try {
+      File file = new File(path + "\\" + fileName + ".key");
+      FileOutputStream fos = new FileOutputStream(file);
+      BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
+      bw.write(KeyGenerator.generateKey(fileName));
+      bw.close();
+      return file;
+    } catch (IOException e) {
       e.printStackTrace();
       return null;
     }
@@ -100,11 +116,11 @@ public class EccWithPrivateKeyFile {
     try {
       String key = new String(Files.readAllBytes(file.toPath()), Charset.defaultCharset());
 
-      String privateKeyPEM = key
+      String publicKeyPEM = key
               .replace("-----BEGIN PUBLIC KEY-----", "")
               .replaceAll(System.lineSeparator(), "")
               .replace("-----END PUBLIC KEY-----", "");
-      byte[] publicKey = Base64.decodeBase64(privateKeyPEM);
+      byte[] publicKey = Base64.decodeBase64(publicKeyPEM);
 
       return KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(publicKey));
     } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException io) {
